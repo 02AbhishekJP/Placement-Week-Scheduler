@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Company {
+  id                   Int      @id @default(autoincrement())
+  name                 String
+  slotsNeeded          Int      // total students to interview
+  panelCount           Int      // number of parallel panels
+  cgpaCutoff           Float
+  interviewDurationMin Int      // minutes per interview
+  priorityTier         String   // "mass", "mid", "niche"
+  assignedDay          Int      // 1-4
+
+  shortlists  Shortlist[]
+  schedules   ScheduleSlot[]
+  unscheduled UnscheduledInterview[]
+}
+
+model Student {
+  id            Int      @id @default(autoincrement())
+  name          String
+  cgpa          Float
+  branch        String
+  alreadyPlaced Boolean  @default(false)
+
+  shortlists  Shortlist[]
+  schedules   ScheduleSlot[]
+  unscheduled UnscheduledInterview[]
+}
+
+model Shortlist {
+  id        Int     @id @default(autoincrement())
+  studentId Int
+  companyId Int
+
+  student Student @relation(fields: [studentId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([studentId, companyId])
+}
+
+model Room {
+  id            Int    @id @default(autoincrement())
+  name          String
+  availableDays String // JSON array of day numbers, e.g. "[1,2,3,4]"
+
+  schedules ScheduleSlot[]
+}
+
+model ScheduleSlot {
+  id           Int    @id @default(autoincrement())
+  companyId    Int
+  studentId    Int
+  roomId       Int
+  panelIndex   Int    // 0-based panel index within the company
+  day          Int    // 1-4
+  startTimeMin Int    // minutes from midnight (e.g. 540 = 9:00 AM)
+  endTimeMin   Int    // minutes from midnight
+  status       String @default("scheduled") // scheduled, moved, cancelled
+
+  company Company @relation(fields: [companyId], references: [id])
+  student Student @relation(fields: [studentId], references: [id])
+  room    Room    @relation(fields: [roomId], references: [id])
+}
+
+model UnscheduledInterview {
+  id        Int    @id @default(autoincrement())
+  studentId Int
+  companyId Int
+  reason    String // human-readable reason
+  code      String // machine-readable code: CGPA_BELOW_CUTOFF, NO_FREE_SLOT, PANEL_FULL, etc.
+
+  student Student @relation(fields: [studentId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
+}
+
+model DisruptionLog {
+  id         Int      @id @default(autoincrement())
+  timestamp  DateTime @default(now())
+  type       String   // COMPANY_LATE, PANEL_DROPPED, STUDENT_WITHDRAWN, ROOM_UNAVAILABLE
+  payload    String   // JSON payload of disruption parameters
+  churnCount Int      // number of interviews affected
+  diffJson   String   // JSON array of diff entries
+}
