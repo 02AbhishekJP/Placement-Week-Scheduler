@@ -4,6 +4,8 @@
 
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import prisma from './db.js';
 import { generateDataset } from './generator.js';
 import { runScheduler } from './scheduler.js';
@@ -294,6 +296,19 @@ app.get('/api/analytics', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── Serve React Frontend (Production) ──────────────────────────────────────
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const clientDist = path.join(__dirname, '../../client/dist');
+
+app.use(express.static(clientDist));
+
+// Catch-all: serve index.html for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'));
 });
 
 // ─── Start Server ───────────────────────────────────────────────────────────
